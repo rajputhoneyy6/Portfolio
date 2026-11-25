@@ -1,48 +1,68 @@
 const nodemailer = require('nodemailer');
 
-function getGmailConfig() {
+function getConfig() {
+  const resendKey = (process.env.RESEND_API_KEY || '').trim();
   const user = (process.env.SMTP_USER || '').trim();
   const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
-  const to = (process.env.NOTIFY_EMAIL || user).trim();
-  return { user, pass, to };
+  const to = (process.env.NOTIFY_EMAIL || user || 'rajput.honeyy6@gmail.com').trim();
+  return { resendKey, user, pass, to };
 }
 
 function createTransporter() {
-  const { user, pass } = getGmailConfig();
+  const { user, pass } = getConfig();
   if (!user || !pass || pass === 'your-16-char-gmail-app-password') {
     return null;
   }
-  const host = (process.env.SMTP_HOST || '').trim();
-  if (!host || host === 'smtp.gmail.com') {
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user, pass }
-    });
-  }
   return nodemailer.createTransport({
-    host,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: process.env.SMTP_SECURE === 'true',
+    service: 'gmail',
     auth: { user, pass }
   });
 }
 
 function logMailerStatus() {
-  const { user, pass, to } = getGmailConfig();
-  if (!user || !pass || pass === 'your-16-char-gmail-app-password') {
-    console.log('[Mailer] Gmail notifications OFF â€” set SMTP_USER and a 16-char Gmail App Password in server/.env to enable.');
+  const { resendKey, user, pass, to } = getConfig();
+  if (resendKey) {
+    console.log(`[Mailer] Resend API ENABLED -> sending to ${to}`);
+  } else if (user && pass && pass !== 'your-16-char-gmail-app-password') {
+    console.log(`[Mailer] Gmail SMTP ENABLED -> sending to ${to}`);
   } else {
-    console.log(`[Mailer] Gmail notifications ENABLED -> sending to ${to}`);
+    console.log('[Mailer] Notifications OFF — set RESEND_API_KEY or SMTP credentials.');
   }
 }
 
 async function sendNotification({ subject, text, html, replyTo }) {
-  const { user, to } = getGmailConfig();
+  const { resendKey, user, to } = getConfig();
+
+  if (resendKey) {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'Ayush Portfolio <onboarding@resend.dev>',
+        to: [to],
+        reply_to: replyTo || undefined,
+        subject,
+        text,
+        html
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Resend API error (${res.status}): ${errText}`);
+    }
+    return { sent: true, mode: 'resend' };
+  }
+
   const transporter = createTransporter();
   if (!transporter || !to) {
-    console.log('[Mailer] Saved locally (Gmail not configured):\n', subject, '\n', text);
+    console.log('[Mailer] Saved locally (mailer not configured):\n', subject, '\n', text);
     return { sent: false, mode: 'console' };
   }
+
   await transporter.sendMail({
     from: `"Ayush Portfolio" <${user}>`,
     to,
