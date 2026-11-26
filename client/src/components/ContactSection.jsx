@@ -83,10 +83,10 @@ export default function ContactSection({ profile, onCopyEmail, onOpenBooking, on
                   onChange={(e) => setForm({ ...form, budget: e.target.value })}
                 >
                   <option value="">Select…</option>
-                  <option value="less than ₹2000">less than ₹2000</option>
-                  <option value="₹2,000 - ₹5,000">₹2,000 - ₹5,000</option>
-                  <option value="₹5,000 - ₹10,000">₹5,000 - ₹10,000</option>
-                  <option value="₹10,000+">₹10,000+</option>
+                  <option value="less than ₹2000">less than ₹20000</option>
+                  <option value="₹2,000 - ₹5,000">₹20,000 - ₹50,000</option>
+                  <option value="₹5,000 - ₹10,000">₹50,000 - ₹1,00,000</option>
+                  <option value="₹10,000+">₹1,00,000+</option>
                 </select>
               </div>
 
